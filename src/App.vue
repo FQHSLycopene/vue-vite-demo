@@ -5,7 +5,7 @@
       <h2>最简单的CRUD DEOM</h2>
     </div>
     <div class="query-box">
-      <el-input class="query-input" v-model="queryInput" placeholder="请输入姓名搜索" />
+      <el-input class="query-input" v-model="queryInput" placeholder="请输入姓名搜索" @input="handleQueryName" />
       <div class="button-list">
         <el-button type="success"  @click="handleAdd">增加</el-button>
         <el-button type="danger"  @click="handleDelList" v-if="multipleSelection.length>0">删除多选</el-button>
@@ -40,7 +40,7 @@
     </el-dialog>
     <!--table-->
     <el-table
-        :data="tableData"
+        :data="tableDataView"
         style="width: 100%"
         border
         ref="multipleTableRef"
@@ -100,6 +100,7 @@ var tableData =ref([
     address:"广东省",
   },
 ])
+var tableDataView =ref(tableData.value)
 var multipleSelection = ref([])
 var dialogFormVisible = ref(false)
 var tableForm = ref({
@@ -114,6 +115,18 @@ var dialogType = ref("add")
 var id = 4
 // 方法
 
+//查询
+const handleQueryName = (val)=>{
+  if(val.length>0){
+    tableDataView.value = tableData.value.filter(item=>(item.name).toLowerCase().match(val.toLowerCase()))
+  }else {
+    tableDataView.value = tableData.value
+  }
+
+
+
+}
+
 //删除一条
 const handleDelete = ({id})=>{
 //  1.通过id获取到条目对应的index
@@ -121,6 +134,7 @@ const handleDelete = ({id})=>{
 //  2.通过index删除条目
   tableData.value.splice(index, 1)
 }
+
 //删除多条
 const handleDelList = ()=>{
   multipleSelection.value.forEach(id =>{
@@ -162,7 +176,6 @@ const dialogConfirm = ()=>{
   }else {
     var id = tableForm.value.id
     var index = tableData.value.findIndex(item=>item.id === id)
-    console.log(tableData.value[index])
     tableData.value[index] = tableForm.value
   }
 }
