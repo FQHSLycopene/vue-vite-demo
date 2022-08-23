@@ -15,7 +15,7 @@
     <el-dialog v-model="dialogFormVisible" :title="dialogType==='add'? '新增':'编辑'">
       <el-form :model="tableForm">
         <el-form-item label="姓名" :label-width="80">
-          <el-input v-model="tableForm.name" autocomplete="off" />
+          <el-input v-model="tableForm.name" autocomplete="off" required/>
         </el-form-item>
         <el-form-item label="邮箱" :label-width="80">
           <el-input v-model="tableForm.email" autocomplete="off" />
@@ -40,10 +40,10 @@
     </el-dialog>
     <!--table-->
     <el-table
-        :data="tableDataView"
+        :data="tableData"
         style="width: 100%"
         border
-        ref="multipleTableRef"
+        ref="multipleTableref"
         @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="55" />
@@ -59,14 +59,23 @@
         </template>
       </el-table-column>
     </el-table>
+    <el-pagination
+        background
+        layout="prev, pager, next"
+        :total="total"
+        style="display: flex;justify-content: center;margin-top:10px"
+        :current-page = "curPage"
+        @current-change="handleChangePage"
+    />
   </div>
 </template>
 
 <script setup>
 import {ref} from "vue"
+import request from "./utils/requires.js"
 //数据
-var queryInput = ref("")
-var tableData =ref([
+var queryInput = $ref("")
+var tableData =$ref([
   {
     id:1,
     name:"张1",
@@ -100,10 +109,9 @@ var tableData =ref([
     address:"广东省",
   },
 ])
-var tableDataView =ref(tableData.value)
-var multipleSelection = ref([])
-var dialogFormVisible = ref(false)
-var tableForm = ref({
+var multipleSelection = $ref([])
+var dialogFormVisible = $ref(false)
+var tableForm = $ref({
   id:1,
   name:"张三",
   email:"123@qq.com",
@@ -111,16 +119,40 @@ var tableForm = ref({
   state:"在职",
   address:"广东省",
 })
-var dialogType = ref("add")
-var id = 4
+var dialogType = $ref("add")
+var total = $ref(20)
+var curPage = $ref(1)
+
 // 方法
 
-//查询
-const handleQueryName = (val)=>{
-  if(val.length>0){
-    tableDataView.value = tableData.value.filter(item=>(item.name).toLowerCase().match(val.toLowerCase()))
-  }else {
-    tableDataView.value = tableData.value
+//请求分页
+const handleChangePage = (val)=>{
+  getTableData(val)
+}
+//请求Table数据/分页
+const getTableData = async (cur = 1)=>{
+  var res = await request.get("/",{
+    pageSize:10,
+    pageNum:cur
+  })
+  tableData = res.list
+  total = res.total
+  curPage = res.pageNum
+}
+getTableData(1)
+
+
+
+
+//搜索
+const handleQueryName = async (val)=>{
+  if(val.length >0){
+    var res = await request.get(`/${val}`);
+    tableData = res.list
+    curPage = 1
+    total = 10
+  }else{
+    getTableData()
   }
 
 
@@ -128,55 +160,70 @@ const handleQueryName = (val)=>{
 }
 
 //删除一条
-const handleDelete = ({id})=>{
-//  1.通过id获取到条目对应的index
-  var index = tableData.value.findIndex(item=>item.id === id)
-//  2.通过index删除条目
-  tableData.value.splice(index, 1)
+const handleDelete = async ({ID})=>{
+//  // 1.通过id获取到条目对应的index
+//   var index = tableData.findIndex(item=>item.id === id)
+// //  2.通过index删除条目
+//   tableData.splice(index, 1)
+  console.log(total);
+  await request.delete(`/${ID}`)
+  if ((total-1)%10==0){
+    curPage--
+  }
+  getTableData(curPage)
 }
 
 //删除多条
 const handleDelList = ()=>{
-  multipleSelection.value.forEach(id =>{
-    handleDelete({id})
+  multipleSelection.forEach(ID =>{
+    handleDelete({ID})
   })
-  multipleSelection.value = []
+  multipleSelection = []
 }
 
 //选中
 const handleSelectionChange = (val) => {
-  multipleSelection.value = []
+  multipleSelection = []
   val.forEach(item=>{
-    multipleSelection.value.push(item.id)
+    multipleSelection.push(item.ID)
   })
 }
 
 //添加
 const handleAdd = () =>{
-  dialogType.value = "add"
-  dialogFormVisible.value = true
-  tableForm.value = {}
+  dialogType = "add"
+  dialogFormVisible = true
+  tableForm = {}
 }
 //修改
 const handleEdit = (row) =>{
-  dialogType.value = "Edit"
-  dialogFormVisible.value = true
-  tableForm.value = row
+  dialogType = "Edit"
+  dialogFormVisible = true
+  tableForm = row
 }
 
-const dialogConfirm = ()=>{
-  dialogFormVisible.value = false
+const dialogConfirm = async ()=>{
+  dialogFormVisible = false
 //  1.拿到数据
 //  2.添加套table
-  if(dialogType.value=="add") {
-    tableData.value.push({
-      id: id++,
-      ...tableForm.value
+  if(dialogType=="add") {
+    // tableData.push({
+    //   id: id++,
+    //   ...tableForm
+    // })
+    //添加数据
+    var res = await request.post("/",{
+      ...tableForm
     })
+    //刷新数据
+    await getTableData(curPage)
+
   }else {
-    var id = tableForm.value.id
-    var index = tableData.value.findIndex(item=>item.id === id)
-    tableData.value[index] = tableForm.value
+    var ID = tableForm.ID
+    var res = await request.put(`/${ID}`,{
+      ...tableForm
+    })
+    await getTableData(curPage)
   }
 }
 
